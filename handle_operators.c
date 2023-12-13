@@ -24,11 +24,13 @@
  * the function.
  * @cmd_idx: Index of the command in the token array.
  * @aliases: A pointer to the head of the linked list containing the aliases.
+ * @new_env: Pointer to the environment variable (can be updated during
+ * command execution).
  *
  */
 
 void handle_operators(char **argv, char *cmd_line, char *operator,
-	int *exit_status, int cmd_idx, Alias **aliases)
+	int *exit_status, int cmd_idx, Alias **aliases, char **new_env)
 {
 	char **multi_cmd = NULL;
 	char **cmd = NULL;
@@ -45,7 +47,7 @@ void handle_operators(char **argv, char *cmd_line, char *operator,
 		if (!cmd)
 			continue;
 
-		process_command(cmd, argv, cmd_idx, &status, aliases);
+		process_command(cmd, argv, cmd_idx, &status, aliases, new_env);
 
 		if ((_strcmp(operator, "&&") == 0 && status != 0) ||
 			(_strcmp(operator, "||") == 0 && status == 0))

@@ -10,11 +10,13 @@
  * @argv: An array of strings representing the command-line arguments.
  * @exit_status: The exit status of the previous command.
  * @cmd_idx: Index of the command in the token array.
+ * @new_env: Pointer to the new environment variable (can be NULL).
  *
  * Return: The exit status value.
  */
 
-int exit_shell(char **cmd, char **argv, int *exit_status, int cmd_idx)
+int exit_shell(char **cmd, char **argv, int *exit_status, int cmd_idx,
+	char **new_env)
 {
 	int exit_val = (*exit_status);
 	char *err_msg = "Illegal number";
@@ -35,6 +37,9 @@ int exit_shell(char **cmd, char **argv, int *exit_status, int cmd_idx)
 	/* Free memory allocated for the command*/
 	free_memory(cmd);
 
-	/* Exit the shell with the provided exit status  */
+	if (*new_env != NULL)
+		free(*new_env);
+
+		/* Exit the shell with the provided exit status  */
 	exit(exit_val);
 }

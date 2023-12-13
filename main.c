@@ -18,9 +18,8 @@
 
 int main(int argc, char **argv)
 {
-	/* Buffer to store the user's input cmd */
 	char *cmd_line = NULL;
-	/* Array to store the tokens of the cmd */
+	char *new_env = malloc(1024);
 	char **cmd = NULL;
 	int exit_status = 0, cmd_idx = 0, is_comment = 0;
 	FILE *file = NULL;
@@ -33,29 +32,29 @@ int main(int argc, char **argv)
 		if (!file)
 		{
 			print_file_error(argv[0], cmd_idx, argv[1]);
+			free(new_env);
 			exit(2);
 		}
 	}
-
 	do {
 		cmd_line = read_and_handle_comments(&is_comment, file, argc);
-
 		if (!cmd_line)
 		{
-			handle_exit(is_comment, &exit_status, file);
+			handle_exit(is_comment, &exit_status, file, new_env);
+			free_aliases(aliases);
+			free(new_env);
 			continue;
 		}
 		cmd_idx++;
-		handle_command_exec(cmd, cmd_line, argv, cmd_idx, &exit_status, &aliases);
+		handle_command_exec(cmd, cmd_line, argv, cmd_idx, &exit_status,
+			&aliases, &new_env);
 	} while (1);
-
 	 /* Close the file if it was opened */
 	if (file)
 	{
 		fclose(file);
 		file = NULL;
 	}
-	free_aliases(aliases);
 	free_memory(cmd);
 	return (0);
 }
@@ -104,25 +103,33 @@ char *read_and_handle_comments(int *is_comment, FILE *file, int argc)
  * @is_comment: Flag indicating if the command line is a comment.
  * @exit_status: Pointer to the exit status variable.
  * @file: The file to read from.
+ * @new_env: Pointer to the new environment variable (can be NULL).
  *
  * Return: void
  */
 
-void handle_exit(int is_comment, int *exit_status, FILE *file)
+void handle_exit(int is_comment, int *exit_status, FILE *file, char *new_env)
 {
+	/* Close the file if it was opened */
 	if (file)
 	{
 		fclose(file);
 		file = NULL;
-		exit(*exit_status);
 	}
 
+	/* Print a newline if not a comment and in interactive mode */
 	if (!is_comment)
 	{
 		if (isatty(STDIN_FILENO))
 			write(STDOUT_FILENO, "\n", 1);
-		exit(*exit_status);
 	}
+
+	/* Free the memory allocated for the new environment */
+	if (new_env != NULL)
+		free(new_env), new_env = NULL;
+
+	/* Exit the shell with the specified exit status */
+	exit(*exit_status);
 }
 
 
@@ -140,25 +147,30 @@ void handle_exit(int is_comment, int *exit_status, FILE *file)
  * @cmd_idx: The index of the command.
  * @exit_status: Pointer to the exit status variable.
  * @aliases: A pointer to the head of the linked list containing the aliases.
+ * @new_env: Pointer to the environment variable (can be updated during
+ * command execution).
  *
  * Return: void
  */
 
 void handle_command_exec(char **cmd, char *cmd_line, char **argv,
-	int cmd_idx, int *exit_status, Alias **aliases)
+	int cmd_idx, int *exit_status, Alias **aliases, char **new_env)
 {
 	char *operator = NULL;
 
+	/* Check for the presence of an operator in the command line */
 	operator = check_for_operator(cmd_line);
 
+	/* If an operator is found, delegate handling to handle_operators */
 	if (operator)
 		handle_operators(argv, cmd_line,
-			operator, exit_status, cmd_idx, aliases);
+			operator, exit_status, cmd_idx, aliases, new_env);
 	else
 	{
+		/* If no operator is found, tokenize the command and process it */
 		cmd = tokenize_command(cmd_line, " \t\n");
 		if (!cmd)
 			return;
-		process_command(cmd, argv, cmd_idx, exit_status, aliases);
+		process_command(cmd, argv, cmd_idx, exit_status, aliases, new_env);
 	}
 }
